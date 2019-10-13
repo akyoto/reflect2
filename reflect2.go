@@ -116,27 +116,21 @@ type InterfaceType interface {
 	NumMethod() int
 }
 
-type Config struct {
-	UseSafeImplementation bool
-}
+type Config struct{}
 
 type API interface {
 	TypeOf(obj interface{}) Type
 	Type2(type1 reflect.Type) Type
 }
 
-var ConfigUnsafe = Config{UseSafeImplementation: false}.Froze()
-var ConfigSafe = Config{UseSafeImplementation: true}.Froze()
+var ConfigUnsafe = Config{}.Froze()
 
 type frozenConfig struct {
-	useSafeImplementation bool
-	cache                 sync.Map
+	cache sync.Map
 }
 
 func (cfg Config) Froze() *frozenConfig {
-	return &frozenConfig{
-		useSafeImplementation: cfg.UseSafeImplementation,
-	}
+	return &frozenConfig{}
 }
 
 func (cfg *frozenConfig) TypeOf(obj interface{}) Type {
@@ -163,45 +157,23 @@ func (cfg *frozenConfig) Type2(type1 reflect.Type) Type {
 }
 
 func (cfg *frozenConfig) wrapType(type1 reflect.Type) Type {
-	safeType := safeType{Type: type1, cfg: cfg}
 	switch type1.Kind() {
 	case reflect.Struct:
-		if cfg.useSafeImplementation {
-			return &safeStructType{safeType}
-		}
 		return newUnsafeStructType(cfg, type1)
 	case reflect.Array:
-		if cfg.useSafeImplementation {
-			return &safeSliceType{safeType}
-		}
 		return newUnsafeArrayType(cfg, type1)
 	case reflect.Slice:
-		if cfg.useSafeImplementation {
-			return &safeSliceType{safeType}
-		}
 		return newUnsafeSliceType(cfg, type1)
 	case reflect.Map:
-		if cfg.useSafeImplementation {
-			return &safeMapType{safeType}
-		}
 		return newUnsafeMapType(cfg, type1)
 	case reflect.Ptr, reflect.Chan, reflect.Func:
-		if cfg.useSafeImplementation {
-			return &safeMapType{safeType}
-		}
 		return newUnsafePtrType(cfg, type1)
 	case reflect.Interface:
-		if cfg.useSafeImplementation {
-			return &safeMapType{safeType}
-		}
 		if type1.NumMethod() == 0 {
 			return newUnsafeEFaceType(cfg, type1)
 		}
 		return newUnsafeIFaceType(cfg, type1)
 	default:
-		if cfg.useSafeImplementation {
-			return &safeType
-		}
 		return newUnsafeType(cfg, type1)
 	}
 }
